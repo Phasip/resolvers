@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: "0 4,16 * * *"
+
+jobs:
+  build:
+    env:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    - name: dnsvalidator
+      run: |
+        set -x
+        git clone https://github.com/vortexau/dnsvalidator
+        cd dnsvalidator
+        sed -i 's/"1.1.1.1",//g' dnsvalidator/dnsvalidator.py 
+        sed -i 's/"telegram.com",//g' dnsvalidator/dnsvalidator.py 
+        pip3 install wheel
+        pip3 install setuptools
+        sudo python3 setup.py install
+        cp ../resolvers.txt ../untested_resolvers.txt
+        curl https://public-dns.info/nameservers.txt \
+            https://raw.githubusercontent.com/blechschmidt/massdns/master/lists/resolvers.txt \
+            | sort -R | head -n 5000 >> ../untested_resolvers.txt
+        
+        # Try to run dnsvalidator 5 times, as it sometimes times out in beginning
+        for i in {1..6}; do \
+            rm -f ../resolvers-new.txt
+            dnsvalidator -tL ../untested_resolvers.txt -threads 10 -o ../resolvers-new.txt && break
+            sleep 60;
+        done
+        echo "Done validating"
+        test -e ../resolvers-new.txt
+        cat ../resolvers-new.txt | sort | uniq > ../resolvers-new-uniq.txt
+        
+        for i in {10..1}; do \
+            cat ../resolvers-new-uniq.txt ../resolvers-stable-grade$i.txt \
+            | sort -R | uniq -d | sed '/^$/d' > ../resolvers-stable-grade$((i+1)).txt; 
+        done
+        
+        cat ../resolvers-new-uniq.txt ../resolvers.txt | sort -R \
+           | uniq -d | sed '/^$/d' > ../resolvers-stable-grade1.txt
+        
+        sed '/^$/d' ../resolvers-new-uniq.txt | sort -R > ../resolvers.txt
+    - name: Commit resolvers.txt
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        if [ $(git status --porcelain=v1 2>/dev/null | wc -l) != "0" ]; then
+            git add "resolvers.txt"
+            for i in {11..1}; do git add "resolvers-stable-grade$i.txt"; done
+            git commit -m "Remote version change" -a
+            git push "https://${GITHUB_ACTOR}:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:${GITHUB_REF} --follow-tags
+        fi
