@@ -20,8 +20,6 @@ jobs:
         set -x
         git clone https://github.com/vortexau/dnsvalidator
         cd dnsvalidator
-        sed -i 's/"1.1.1.1",//g' dnsvalidator/dnsvalidator.py 
-        sed -i 's/"telegram.com",//g' dnsvalidator/dnsvalidator.py 
         pip3 install wheel
         pip3 install setuptools
         sudo python3 setup.py install
