@@ -23,15 +23,16 @@ jobs:
         pip3 install wheel
         pip3 install setuptools
         sudo python3 setup.py install
-        cp ../resolvers.txt ../untested_resolvers.txt
+        sort -R ../resolvers.txt > ../untested_resolvers.txt
         curl https://public-dns.info/nameservers.txt \
             https://raw.githubusercontent.com/blechschmidt/massdns/master/lists/resolvers.txt \
-            | sort -R | head -n 2500 >> ../untested_resolvers.txt
-        
+            | sort -R >> ../untested_resolvers.txt
+        # Only try first 2500 and prioritize old resolvers
+        head -n 2500 ../untested_resolvers.txt > ../untested_resolvers.head.txt
         # Try to run dnsvalidator 5 times, as it sometimes times out in beginning
         for i in {1..6}; do \
             rm -f ../resolvers-new.txt
-            dnsvalidator -tL ../untested_resolvers.txt -threads 10 -o ../resolvers-new.txt && break
+            dnsvalidator -tL ../untested_resolvers.head.txt -threads 10 -o ../resolvers-new.txt && break
             sleep 60;
         done
         echo "Done validating"
