@@ -26,7 +26,7 @@ jobs:
         cp ../resolvers.txt ../untested_resolvers.txt
         curl https://public-dns.info/nameservers.txt \
             https://raw.githubusercontent.com/blechschmidt/massdns/master/lists/resolvers.txt \
-            | sort -R | head -n 5000 >> ../untested_resolvers.txt
+            | sort -R | head -n 2500 >> ../untested_resolvers.txt
         
         # Try to run dnsvalidator 5 times, as it sometimes times out in beginning
         for i in {1..6}; do \
