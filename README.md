@@ -1,4 +1,4 @@
-# THIS IS NOT DOING ANYTHING ANYMORE. dnsvalidator has problems and DNS lookups from github actions seems also to be limited now.
+# This has been a bit unmaintained and unstable, but at the time of this commit it worked fine at least... .
 # resolvers.txt
 Fresh list of periodically validated public DNS resolvers.
  
