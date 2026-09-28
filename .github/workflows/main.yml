@@ -21,35 +21,35 @@ jobs:
         pipx install git+https://github.com/vortexau/dnsvalidator
         # Keep only IPv4 addresses, drops IPv6, blank lines, CRLF and error pages
         ipv4() { tr -d '\r' | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$' || true; }
-        ipv4 < resolvers.txt | sort -R > untested_resolvers.txt
+        ipv4 < resolvers.txt | sort -R > "$RUNNER_TEMP/untested_resolvers.txt"
         # Fetch each source separately so one being down does not stop the run
         # and a missing trailing newline cannot join two addresses
         for url in https://public-dns.info/nameservers.txt \
                    https://raw.githubusercontent.com/blechschmidt/massdns/master/lists/resolvers.txt; do
             curl -fsSL --retry 3 "$url" || echo "::warning::Failed to fetch $url"
             echo
-        done | ipv4 | sort -R >> untested_resolvers.txt
+        done | ipv4 | sort -R >> "$RUNNER_TEMP/untested_resolvers.txt"
         # Only try first 2500 unique and prioritize old resolvers
-        awk '!seen[$0]++' untested_resolvers.txt | head -n 2500 > untested_resolvers.head.txt
+        awk '!seen[$0]++' "$RUNNER_TEMP/untested_resolvers.txt" | head -n 2500 > "$RUNNER_TEMP/untested_resolvers.head.txt"
         # Try to run dnsvalidator 5 times, as it sometimes times out in beginning
         for i in {1..6}; do \
-            rm -f resolvers-new.txt
-            dnsvalidator -tL untested_resolvers.head.txt -threads 10 -o resolvers-new.txt && break
+            rm -f "$RUNNER_TEMP/resolvers-new.txt"
+            dnsvalidator -tL "$RUNNER_TEMP/untested_resolvers.head.txt" -threads 10 -o "$RUNNER_TEMP/resolvers-new.txt" && break
             sleep 60;
         done
         echo "Done validating"
-        test -e resolvers-new.txt
-        cat resolvers-new.txt | sort | uniq > resolvers-new-uniq.txt
+        test -e "$RUNNER_TEMP/resolvers-new.txt"
+        cat "$RUNNER_TEMP/resolvers-new.txt" | sort | uniq > "$RUNNER_TEMP/resolvers-new-uniq.txt"
         
         for i in {10..1}; do \
-            cat resolvers-new-uniq.txt resolvers-stable-grade$i.txt \
+            cat "$RUNNER_TEMP/resolvers-new-uniq.txt" resolvers-stable-grade$i.txt \
             | sort -R | uniq -d | sed '/^$/d' > resolvers-stable-grade$((i+1)).txt; 
         done
         
-        cat resolvers-new-uniq.txt resolvers.txt | sort -R \
+        cat "$RUNNER_TEMP/resolvers-new-uniq.txt" resolvers.txt | sort -R \
            | uniq -d | sed '/^$/d' > resolvers-stable-grade1.txt
         
-        sed '/^$/d' resolvers-new-uniq.txt | sort -R > resolvers.txt
+        sed '/^$/d' "$RUNNER_TEMP/resolvers-new-uniq.txt" | sort -R > resolvers.txt
     - name: Commit resolvers.txt
       run: |
         git config --local user.email "action@github.com"
