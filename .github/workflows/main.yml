@@ -7,13 +7,10 @@ on:
 
 jobs:
   build:
-    env:
-      TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
     - name: dnsvalidator
       run: |
@@ -54,9 +51,8 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        if [ $(git status --porcelain=v1 2>/dev/null | wc -l) != "0" ]; then
-            git add "resolvers.txt"
-            for i in {11..1}; do git add "resolvers-stable-grade$i.txt"; done
-            git commit -m "Remote version change" -a
-            git push "https://${GITHUB_ACTOR}:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:${GITHUB_REF} --follow-tags
+        git add resolvers.txt resolvers-stable-grade{1..11}.txt
+        if ! git diff --cached --quiet; then
+            git commit -m "Remote version change"
+            git push origin "HEAD:$GITHUB_REF"
         fi
