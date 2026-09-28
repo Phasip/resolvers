@@ -19,12 +19,18 @@ jobs:
       run: |
         set -x
         pipx install git+https://github.com/vortexau/dnsvalidator
-        sort -R resolvers.txt > untested_resolvers.txt
-        curl https://public-dns.info/nameservers.txt \
-            https://raw.githubusercontent.com/blechschmidt/massdns/master/lists/resolvers.txt \
-            | sort -R >> untested_resolvers.txt
-        # Only try first 2500 and prioritize old resolvers
-        head -n 2500 untested_resolvers.txt > untested_resolvers.head.txt
+        # Keep only IPv4 addresses, drops IPv6, blank lines, CRLF and error pages
+        ipv4() { tr -d '\r' | grep -E '^([0-9]{1,3}\.){3}[0-9]{1,3}$' || true; }
+        ipv4 < resolvers.txt | sort -R > untested_resolvers.txt
+        # Fetch each source separately so one being down does not stop the run
+        # and a missing trailing newline cannot join two addresses
+        for url in https://public-dns.info/nameservers.txt \
+                   https://raw.githubusercontent.com/blechschmidt/massdns/master/lists/resolvers.txt; do
+            curl -fsSL --retry 3 "$url" || echo "::warning::Failed to fetch $url"
+            echo
+        done | ipv4 | sort -R >> untested_resolvers.txt
+        # Only try first 2500 unique and prioritize old resolvers
+        awk '!seen[$0]++' untested_resolvers.txt | head -n 2500 > untested_resolvers.head.txt
         # Try to run dnsvalidator 5 times, as it sometimes times out in beginning
         for i in {1..6}; do \
             rm -f resolvers-new.txt
