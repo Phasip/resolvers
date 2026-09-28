@@ -5,6 +5,14 @@ on:
   schedule:
   - cron: "0 4,16 * * *"
 
+permissions:
+  contents: write
+
+# Never let two runs update the grade files at the same time
+concurrency:
+  group: update-resolvers
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
