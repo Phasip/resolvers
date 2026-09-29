@@ -62,5 +62,7 @@ jobs:
         git add resolvers.txt resolvers-stable-grade{1..11}.txt
         if ! git diff --cached --quiet; then
             git commit -m "Remote version change"
+            # The run takes about an hour, rebase in case someone pushed meanwhile
+            git pull --rebase origin "$GITHUB_REF"
             git push origin "HEAD:$GITHUB_REF"
         fi
